@@ -1,65 +1,94 @@
-# Sistema de Vendedores — Registro de contactos
+# MAURI — Sistema de Vendedores
 
-Aplicación web **sin login para vendedores**, pensada para funcionar desde celulares. Cada registro guarda teléfono, nombre de quien atendió, tipo **Dueño / Vendedor**, fecha y hora automática. Si cargan el mismo número nuevamente, se actualiza el contacto en lugar de duplicarse.
+Proyecto independiente en **Next.js + Supabase**. Dos accesos separados:
 
-## Cómo funciona
-- Formulario público mediante URL compartida.
-- **No** hay página ni API pública que permita ver la base completa.
-- Base de contactos en Supabase; el administrador puede consultar y exportar en **Supabase → Table Editor → contactos_vendedores**.
-- Clave secreta Supabase exclusiva del servidor; nunca aparece en el navegador.
-- Control básico de envíos repetidos (40 por minuto por IP) y campo antispam invisible.
-- No se almacenan IPs legibles, sino una huella HMAC de corta utilidad. La tabla de límites puede limpiarse periódicamente.
+- **Formulario para vendedores:** `https://TU-DOMINIO/` — sin usuario ni contraseña. Permite registrar teléfono, nombre y tipo (Dueño o Vendedor).
+- **Administrador:** enlace secreto `https://TU-DOMINIO/acceso?token=VALOR_DE_ADMIN_ACCESS_TOKEN` — sin contraseña que escribir. Al abrirlo deja una cookie **HttpOnly** válida 7 días y redirige a `/admin` sin mostrar el secreto en la dirección. El administrador puede filtrar fechas, ver estadísticas y descargar todos los registros del rango seleccionado.
 
-> Importante: una URL compartida sin login **no es privada**. Cualquiera que obtenga el enlace puede enviar nuevos registros. Los datos no pueden consultarse desde el formulario, pero esto no reemplaza una autenticación ni protección avanzada frente al spam.
+## Funciones del administrador
 
-## 1. Crear proyecto en Supabase
+- Selección **Hoy, Ayer, Últimos 7 días, Este mes, Todos y Personalizado (desde/hasta)**.
+- Hora de referencia: **Argentina (UTC−03:00)**, inclusive desde las 00:00 hasta antes de las 00:00 del día posterior.
+- Cuatro indicadores: contactos del período, total de teléfonos únicos en la base, dueños del período y vendedores del período.
+- Tabla paginada (50 por página), fecha y hora del primer registro y cantidad de veces que se volvió a registrar.
+- **Exportar CSV**: todos los contactos del período, aun si hay muchas páginas en pantalla. CSV separado por punto y coma y UTF-8 con BOM para Excel. Importar la columna teléfono como **Texto** para preservar ceros iniciales.
+- **Descargar PDF**: listado A4 multipágina de todos los contactos seleccionados, hasta **15.000 por exportación**. Para más registros usar CSV, para evitar límites de memoria de Vercel.
+- Si se vuelve a registrar el mismo número, se actualizan los datos del contacto y no se duplica. El filtro de fecha representa **el primer alta de ese teléfono**; `actualizado_en` registra su última actualización.
 
-1. Crear un proyecto nuevo en https://supabase.com/dashboard (o usar uno ya seleccionado).
-2. Abrir **SQL Editor** y ejecutar **todo** `supabase/schema.sql`.
-3. Confirmar que `contactos_vendedores` y `limites_contactos` aparecen en Table Editor.
-4. Ir a **Project Settings → API Keys** o **Connect** y obtener la **URL** y una clave de servidor **Secret** (`sb_secret_...`). **Nunca compartir esa clave por chat ni subirla a GitHub**.
+### Seguridad importante
 
-## 2. Configurar variables en Vercel
+El panel **no tiene contraseña**, pero requiere un **enlace privado imposible de adivinar** configurado en el servidor. Tratalo como una contraseña: **no lo compartas con vendedores ni lo subas a GitHub, ni lo publiques en WhatsApp grupos**. Cualquiera que tenga ese enlace puede consultar y exportar tu base. Si se filtra, generá otro token en Vercel y redesplegá. Para datos sensibles o varios administradores se recomienda una autenticación real en lugar de un enlace secreto.
 
-Importar este repositorio en https://vercel.com/new y definir, en Environment Variables (Production, Preview y Development si corresponde):
+La clave de Supabase (`SUPABASE_SECRET_KEY`) vive exclusivamente en el servidor y **jamás** en el navegador ni en variables `NEXT_PUBLIC_*`. Las tablas usan RLS y no tienen permisos públicos de lectura. El formulario usa una API server-side con límite básico 40 envíos/minuto por huella de IP y antispam simple.
 
-| Variable | Ejemplo / nota |
-|---|---|
-| `SUPABASE_URL` | `https://xxxx.supabase.co` |
-| `SUPABASE_SECRET_KEY` | `sb_secret_...` (solo servidor) |
-| `IP_HASH_SECRET` | Cadena aleatoria larga de 32+ caracteres |
+## 1. Configurar tablas de Supabase
 
-Para generar `IP_HASH_SECRET` en tu propio ordenador: `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+1. Abrí el proyecto Supabase NUEVO elegido para Mauri (no confundir con MESA o Pawwise).
+2. Abrí **SQL Editor** y ejecutá **todo** el contenido de [`supabase/schema.sql`](supabase/schema.sql).
+3. En **Table Editor** comprobá que aparecen `contactos_vendedores` y `limites_contactos`.
+4. En **Project Settings → API Keys / Connect** copiá la **Project URL** y la clave secreta `sb_secret_...`. Ponerla solo en variables privadas de Vercel, **nunca en este repositorio**.
 
-En Vercel, Framework = **Next.js**. Node.js >= 20.9. Desplegar. Al cambiar una variable, volver a desplegar.
+Si ya ejecutaste el SQL original, podés ejecutarlo de nuevo: usa `IF NOT EXISTS` para tablas/índices y vuelve a definir la misma función, sin borrar contactos.
 
-## 3. Importar Mauri en Vercel
+## 2. Importar GitHub en Vercel
 
-El proyecto está alojado en el repositorio **https://github.com/tobiasc541/Mauri**.
+Repositorio: [tobiasc541/Mauri](https://github.com/tobiasc541/Mauri)
 
-1. Abrí https://vercel.com/new, elegí la cuenta de GitHub con acceso a `tobiasc541/Mauri` e importá el repositorio.
-2. Configurá las 3 variables del punto 2 (solo en el panel de Vercel, **no** en GitHub).
-3. Desplegá la aplicación. El nombre visible del sistema será **Sistema de Vendedores**.
+1. En [vercel.com/new](https://vercel.com/new), importar `tobiasc541/Mauri` como **Next.js**, Node 20.9+.
+2. Configurar las cuatro variables de entorno del proyecto, en Production (y Preview si se desea probar previews):
 
-Para trabajar localmente, copiá `.env.example` como `.env.local`, completá sus valores y ejecutá `npm install && npm run dev`.
+| Variable | Valor | Visibilidad |
+|---|---|---|
+| `SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` | Servidor |
+| `SUPABASE_SECRET_KEY` | Secret key de tu proyecto `sb_secret_...` | Servidor **secreto** |
+| `IP_HASH_SECRET` | Cadena aleatoria de al menos 24 caracteres | Servidor **secreto** |
+| `ADMIN_ACCESS_TOKEN` | Cadena privada aleatoria larga (64 caracteres hex sugeridos) | Servidor **secreto** |
 
-## 4. Comprobar que funciona
+Generar un secreto en tu propia terminal, para cada una de las últimas dos variables:
 
-1. Desde la URL de Vercel, cargá un contacto de prueba.
-2. En Supabase, abrí `contactos_vendedores` y verificá la fila.
-3. Volvé a ingresar **el mismo número** con otro tipo: debería haber una sola fila, `veces_registrado = 2` y el último nombre/tipo.
-4. Entrá en ventana privada: el formulario abre sin contraseña.
-5. Intentá GET `/api/contactos`: debe devolver `405` (no lista los datos).
-6. En Supabase con clave `anon`/publishable no debe poderse leer `contactos_vendedores`.
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
 
-## Datos y privacidad
+**Usá un secreto DISTINTO para `IP_HASH_SECRET` y para `ADMIN_ACCESS_TOKEN`.** No los publiques.
 
-Guardá solo información de contactos obtenidos legítimamente para seguimiento comercial, informá de la finalidad y respetá solicitudes de baja. La base contiene teléfonos y nombres personales: protegé el acceso de administrador a Supabase. No se diseñó para enviar mensajes automáticos masivos sin consentimiento.
+3. Desplegar o redesplegar después de cargar las variables.
+4. Tu formulario es `https://DOMINIO/` y tu **enlace privado de administrador** es `https://DOMINIO/acceso?token=EL_VALOR_DE_ADMIN_ACCESS_TOKEN`.
+5. Cuando ingresás con el enlace secreto, el navegador te manda a `https://DOMINIO/admin`, con sesión privada de 7 días.
 
-## Estructura
+## 3. Probar el sistema
 
-- `app/page.tsx`: pantalla de carga.
-- `app/globals.css`: estilos responsivos.
-- `app/api/contactos/route.ts`: guardado validado en el servidor.
-- `supabase/schema.sql`: tablas, validaciones, bloqueo de lectura pública y procedimiento atómico.
-- `.env.example`: variables que debe cargar el administrador en Vercel.
+1. Entrá al formulario y cargá un número de prueba con nombre y tipo.
+2. Comprobá que aparece una fila en Supabase.
+3. Ingresá con tu enlace privado a `/acceso?token=...` y abrí **Hoy**. Debe verse el registro y los indicadores.
+4. Exportá CSV y PDF. Los archivos deben contener los mismos contactos que el filtro.
+5. Repetí el mismo número en el formulario. Debe conservarse una sola fila con `veces_registrado` incrementado.
+6. Abrí `/admin` en una ventana incógnita **sin** pasar por el enlace privado. Debe devolver 404, y `/api/admin/contactos` debe responder 401.
+7. Comprobá que la clave anónima/publishable de Supabase **no puede leer** `contactos_vendedores` directamente.
+
+### Desarrollo local
+
+Copiá `.env.example` a `.env.local`, completá las cuatro variables y ejecutá:
+
+```bash
+npm install
+npm run dev
+```
+
+## Estructura principal
+
+- `app/page.tsx`: formulario público.
+- `app/admin/page.tsx`, `app/admin/panel.tsx`: panel privado.
+- `app/acceso/route.ts`: canje del enlace secreto por cookie HttpOnly.
+- `app/api/contactos/route.ts`: alta de contactos, sin capacidad pública de consulta.
+- `app/api/admin/contactos/route.ts`: listado, estadísticas y paginación, solo administrador.
+- `app/api/admin/export/route.ts`: CSV y PDF según rango seleccionado, solo administrador.
+- `lib/admin-auth.ts`: validación criptográfica de sesión.
+- `lib/filtros.ts`: períodos con horarios de Argentina.
+- `lib/pdf-simple.ts`: PDF multipágina sin librerías externas.
+- `lib/supabase-server.ts`: cliente privilegiado exclusivo del servidor.
+- `supabase/schema.sql`: tablas SQL, RPC, índices, RLS y permisos.
+
+## Privacidad
+
+Guardá únicamente contactos obtenidos de manera legítima, informá la finalidad y respetá solicitudes de baja. Esta aplicación NO incluye herramientas de envío masivo automático.

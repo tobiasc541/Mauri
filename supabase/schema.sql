@@ -85,3 +85,15 @@ grant execute on function public.registrar_contacto(text, text, text, text) to s
 -- Para exportar: Table Editor -> contactos_vendedores -> Export to CSV.
 -- Mantenimiento opcional, manual (borra solo límites, no contactos):
 -- delete from public.limites_contactos where minuto < now() - interval '2 days';
+
+-- PANEL ADMINISTRADOR (sin contraseña, con enlace secreto):
+-- Este panel usa las mismas tablas existentes; NO requiere crear usuarios
+-- ni habilitar lectura pública. Las consultas y exportaciones se realizan
+-- solamente desde las rutas privadas del servidor (clave SUPABASE_SECRET_KEY).
+-- No habilitar políticas SELECT para "anon" ni "authenticated".
+-- Índice recomendado para consultar el período más reciente:
+create index if not exists contactos_vendedores_fecha_id_idx
+    on public.contactos_vendedores (creado_en desc, id desc);
+
+-- NOTA: creado_en corresponde al primer registro de ese número; volver a
+-- cargar el mismo teléfono actualiza actualizado_en y veces_registrado.
