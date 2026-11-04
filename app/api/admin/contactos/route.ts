@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { esAdmin } from "@/lib/admin-auth";
-import { leerFiltros } from "@/lib/filtros";
+import { leerFiltros, type Filtros } from "@/lib/filtros";
 import { supabaseServidor } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const db = supabaseServidor();
   if (!db) return json({ error: "Falta conectar Supabase en Vercel." }, 503);
 
-  let filtros;
+  let filtros: Filtros;
   try { filtros = leerFiltros(req.nextUrl.searchParams); }
   catch (e) { return json({ error: (e as Error).message }, 400); }
 

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { esAdmin } from "@/lib/admin-auth";
-import { leerFiltros, rangoDescripcion } from "@/lib/filtros";
+import { leerFiltros, rangoDescripcion, type Filtros } from "@/lib/filtros";
 import { generarPdfContactos, type FilaPdf } from "@/lib/pdf-simple";
 import { supabaseServidor } from "@/lib/supabase-server";
 
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (!db) return error("Conectá Supabase primero.", 503);
   const formato = req.nextUrl.searchParams.get("formato") || "csv";
   if (formato !== "csv" && formato !== "pdf") return error("Formato inválido.", 400);
-  let filtros;
+  let filtros: Filtros;
   try { filtros = leerFiltros(req.nextUrl.searchParams); }
   catch (e) { return error((e as Error).message, 400); }
 
