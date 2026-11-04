@@ -131,6 +131,7 @@ export default function PanelAdmin() {
           <div className="admin-header-right"><span className="admin-private"><i /> Área privada</span><a href="/" className="admin-link">Ir al formulario ↗</a></div>
         </div>
       </header>
+      <div className="ticker" aria-hidden="true"><div>{Array.from({ length: 2 }).flatMap((_, n) => ["Central de contactos", "Mauri", "Área privada", "Exportá CSV y PDF", "Horario de Argentina"].map((t, i) => <b key={`${n}-${i}`} className={i % 2 ? "g" : ""}>✦ {t}</b>))}</div></div>
       <div className="admin-container">
         <div className="admin-headline">
           <div><span className="admin-overline">CENTRAL DE CONTACTOS</span><h1>Panel de <em>administración</em></h1><p>Consultá quiénes fueron registrados, filtrá por fecha y descargá los números que necesitás contactar.</p></div>

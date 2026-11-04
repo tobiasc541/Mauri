@@ -87,6 +87,7 @@ export default function Home() {
           </div>
           <div className="top-status"><span className="status-dot"/> Registro de contactos</div>
         </header>
+        <div className="ticker" aria-hidden="true"><div>{Array.from({ length: 2 }).flatMap((_, n) => ["Registro de contactos", "Mauri", "Dueños y vendedores", "Seguimiento comercial", "Cada contacto cuenta"].map((t, i) => <b key={`${n}-${i}`} className={i % 2 ? "g" : ""}>✦ {t}</b>))}</div></div>
 
         <div className="layout">
           <section className="intro" aria-labelledby="intro-title">
